@@ -1,0 +1,130 @@
+server:
+  port: 8820 #8820-8829
+  servlet:
+    #配置项目名称 斜杠代表不需要项目名称 直接IP+端口/api/pay
+    context-path: /
+spring:
+  shardingsphere:
+    # 数据源配置
+    datasource:
+      # 数据源名称，多数据源以逗号分隔
+      names: write-ds
+      write-ds:
+        type: com.alibaba.druid.pool.DruidDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+#        url: jdbc:mysql://admin.coolwintec.com:3306/octropaytest?characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+        url: jdbc:mysql://payofsg.c8svqsimr6ry.ap-southeast-1.rds.amazonaws.com:36533/octropay?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8
+        username: admin
+        password: Sgxe3xWmcJtOJfgJc3w2
+    # 规则配置
+    rules:
+      sharding:
+        tables:
+          # 逻辑表名称
+          order_pay:
+            # 行表达式标识符可以使用 ${...} 或 $->{...}，但前者与 Spring 本身的属性文件占位符冲突，因此在 Spring 环境中使用行表达式标识符建议使用 $->{...}
+            #            actual-data-nodes: glapp.t_order$->{def lst=[];for (int i=0;i<100;i++){if(i==0){lst.add('')}else{lst.add('_'+i)}};lst}
+            actual-data-nodes: write-ds.order_pay,write-ds.order_pay_$->{1..5}$->{['01','02','03','04','05']}
+            # 分表策略
+            table-strategy:
+              standard:
+                # 分片列名称
+                sharding-column: sharding_id
+                # 分片算法名称
+                sharding-algorithm-name: table-inline
+          # 附属逻辑表同样需要定义
+          order_info:
+            # 行表达式标识符可以使用 ${...} 或 $->{...}，但前者与 Spring 本身的属性文件占位符冲突，因此在 Spring 环境中使用行表达式标识符建议使用 $->{...}
+            #            actual-data-nodes: glapp.t_order$->{def lst=[];for (int i=0;i<100;i++){if(i==0){lst.add('')}else{lst.add('_'+i)}};lst}
+            actual-data-nodes: write-ds.order_info,write-ds.order_info_$->{1..5}$->{['01','02','03','04','05']}
+            # 分表策略
+            table-strategy:
+              standard:
+                # 分片列名称
+                sharding-column: sharding_id
+                # 分片算法名称
+                sharding-algorithm-name: table-item
+          # 逻辑表名称
+          order_payment:
+            # 行表达式标识符可以使用 ${...} 或 $->{...}，但前者与 Spring 本身的属性文件占位符冲突，因此在 Spring 环境中使用行表达式标识符建议使用 $->{...}
+            #            actual-data-nodes: glapp.t_order$->{def lst=[];for (int i=0;i<100;i++){if(i==0){lst.add('')}else{lst.add('_'+i)}};lst}
+            actual-data-nodes: write-ds.order_payment,write-ds.order_payment_$->{1..5}$->{['01','02','03','04','05']}
+            # 分表策略
+            table-strategy:
+              standard:
+                # 分片列名称
+                sharding-column: sharding_id
+                # 分片算法名称
+                sharding-algorithm-name: payment-inline
+          # 附属逻辑表同样需要定义
+          order_payment_info:
+            # 行表达式标识符可以使用 ${...} 或 $->{...}，但前者与 Spring 本身的属性文件占位符冲突，因此在 Spring 环境中使用行表达式标识符建议使用 $->{...}
+            #            actual-data-nodes: glapp.t_order$->{def lst=[];for (int i=0;i<100;i++){if(i==0){lst.add('')}else{lst.add('_'+i)}};lst}
+            actual-data-nodes: write-ds.order_payment_info,write-ds.order_payment_info_$->{1..5}$->{['01','02','03','04','05']}
+            # 分表策略
+            table-strategy:
+              standard:
+                # 分片列名称
+                sharding-column: sharding_id
+                # 分片算法名称
+                sharding-algorithm-name: payment-item
+        # 分片算法配置
+        sharding-algorithms:
+          table-inline:
+            # 分片算法类型
+            type: INLINE
+            props:
+              # 分片算法的行表达式
+              algorithm-expression: order_pay$->{if(sharding_id==0){''}else{'_'+sharding_id}}
+          table-item:
+            # 分片算法类型
+            type: INLINE
+            props:
+              # 分片算法的行表达式
+              algorithm-expression: order_info$->{if(sharding_id==0){''}else{'_'+sharding_id}}
+          payment-inline:
+            # 分片算法类型
+            type: INLINE
+            props:
+              # 分片算法的行表达式
+              algorithm-expression: order_payment$->{if(sharding_id==0){''}else{'_'+sharding_id}}
+          payment-item:
+            # 分片算法类型
+            type: INLINE
+            props:
+              # 分片算法的行表达式
+              algorithm-expression: order_payment_info$->{if(sharding_id==0){''}else{'_'+sharding_id}}
+        # 绑定表规则列表
+        binding-tables:
+          - order_pay,order_info
+          - order_payment,order_payment_info
+    props:
+      # 展示修改以后的sql语句
+      sql-show: true
+  redis:
+    host: myredisofsg.wnzoum.0001.apse1.cache.amazonaws.com
+    port: 6379
+    password:
+    database: 2
+
+  rabbitmq:
+    host: b-faa73544-b237-4362-a1a9-7b98f222edbf.mq.ap-southeast-1.amazonaws.com
+    port: 5671
+    username: MyRabitMqOfSG
+    password: mqpassword987
+    ssl:
+      enabled: true
+    virtual-host: /
+
+# 指定当前eureka客户端的注册地址,
+eureka:
+  client:
+    service-url:
+      defaultZone: http://peer1:8800/eureka, http://peer2:8800/eureka
+  instance:
+    prefer-ip-adderss: true
+    hostname: ${spring.cloud.client.ip-address}
+    # 续约更新时间间隔（默认30秒）
+    lease-renewal-interval-in-seconds: 1
+    # 续约到期时间（默认90秒）
+    lease-expiration-duration-in-seconds: 2
